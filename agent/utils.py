@@ -1,14 +1,17 @@
-"""Shared helper utilities for the MAMG pipeline."""
+"""Shared helper utilities for the Agent pipeline."""
 
 from __future__ import annotations
 
 import csv
+import logging
 import re
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any, Iterable, List, Sequence
 
 from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 
 def sanitize_filename(value: str, max_length: int = 120) -> str:
@@ -57,9 +60,10 @@ def append_csv_rows_with_fallback(
     try:
         append_csv_rows(csv_path, rows, fieldnames)
         return csv_path
-    except Exception:
+    except Exception as exc:
         fallback_root = backup_root or Path("/content/AI_Microstock_Agent_backup")
         fallback_path = fallback_root / csv_path.name
+        logger.warning("Failed to write CSV to %s, falling back to %s: %s", csv_path, fallback_path, exc)
         append_csv_rows(fallback_path, rows, fieldnames)
         return fallback_path
 
@@ -71,10 +75,11 @@ def save_image_with_fallback(image: Image.Image, image_path: Path, backup_root: 
     try:
         image.save(image_path)
         return image_path
-    except Exception:
+    except Exception as exc:
         fallback_root = backup_root or Path("/content/AI_Microstock_Agent_backup/images")
         fallback_path = fallback_root / image_path.name
         fallback_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.warning("Failed to save image to %s, falling back to %s: %s", image_path, fallback_path, exc)
         image.save(fallback_path)
         return fallback_path
 

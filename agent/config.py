@@ -1,4 +1,4 @@
-"""Configuration objects for the MAMG Colab workflow."""
+"""Configuration objects for the Agent Colab workflow."""
 
 from __future__ import annotations
 
@@ -39,17 +39,37 @@ class TrendScraperConfig:
         "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
     )
     supported_categories: List[str] = field(
-        default_factory=lambda: ["Design/Arts", "Business", "Technology"]
+        default_factory=lambda: [
+            "Design/Arts",
+            "Business",
+            "Technology",
+            "Health",
+            "Travel",
+            "Food",
+            "Education",
+            "Sports",
+            "Lifestyle",
+            "Nature",
+            "Science",
+            "Fashion",
+            "Entertainment",
+            "Home",
+            "Automotive",
+            "Finance",
+            "Environment",
+            "Real Estate",
+            "Wellness",
+            "Culture",
+        ]
     )
 
     def validate(self) -> None:
         if self.max_keywords <= 0:
             raise ValueError("max_keywords must be greater than zero.")
-        if self.category not in self.supported_categories:
-            raise ValueError(
-                f"Unsupported category '{self.category}'. "
-                f"Choose one of: {', '.join(self.supported_categories)}."
-            )
+        if not self.category or not self.category.strip():
+            raise ValueError("category must not be empty.")
+        if not self.geo or not self.geo.strip():
+            raise ValueError("geo must not be empty.")
 
 
 def build_session_folder_name(trend_name: str | None = None) -> str:

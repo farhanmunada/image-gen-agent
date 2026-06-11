@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Dict
 
+from .config import TrendScraperConfig
 from .runtime import PipelineRuntimeOptions
 
 
@@ -19,7 +20,7 @@ def build_runtime_widgets(defaults: PipelineRuntimeOptions | None = None) -> Dic
         raise RuntimeError("ipywidgets is required for interactive Colab controls.") from exc
 
     category = widgets.Dropdown(
-        options=["Design/Arts", "Business", "Technology"],
+        options=TrendScraperConfig().supported_categories,
         value=defaults.category,
         description="Category",
     )
@@ -46,8 +47,18 @@ def build_runtime_widgets(defaults: PipelineRuntimeOptions | None = None) -> Dic
         value=defaults.model_name,
         description="Model",
     )
-    height = widgets.IntText(value=defaults.height, description="Height")
-    width = widgets.IntText(value=defaults.width, description="Width")
+    height = widgets.BoundedIntText(
+        value=defaults.height,
+        min=1080,
+        max=4096,
+        description="Height",
+    )
+    width = widgets.BoundedIntText(
+        value=defaults.width,
+        min=1920,
+        max=4096,
+        description="Width",
+    )
     seed = widgets.IntText(value=defaults.seed or 0, description="Seed")
     use_cpu_offload = widgets.Checkbox(value=defaults.use_cpu_offload, description="CPU offload")
     enable_lora = widgets.Checkbox(value=defaults.enable_lora, description="LoRA")

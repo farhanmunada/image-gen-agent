@@ -1,4 +1,4 @@
-"""End-to-end orchestration for the MAMG workflow."""
+"""End-to-end orchestration for the Agent workflow."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ class PipelineResult:
     metadata_csv_path: Path
 
 
-class MAMGPipeline:
+class AgentPipeline:
     """Coordinate the full microstock generation workflow."""
 
     def __init__(
@@ -44,7 +44,7 @@ class MAMGPipeline:
         self.metadata_exporter = MetadataExporter()
 
     @classmethod
-    def from_runtime_options(cls, runtime: PipelineRuntimeOptions) -> "MAMGPipeline":
+    def from_runtime_options(cls, runtime: PipelineRuntimeOptions) -> "AgentPipeline":
         """Build a pipeline from user-facing runtime options."""
 
         return cls(

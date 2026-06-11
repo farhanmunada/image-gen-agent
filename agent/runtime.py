@@ -1,4 +1,4 @@
-"""Runtime options used to wire Colab inputs into the MAMG pipeline."""
+"""Runtime options used to wire Colab inputs into the Agent pipeline."""
 
 from __future__ import annotations
 

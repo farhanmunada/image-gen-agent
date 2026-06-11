@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
 from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 from .prompt_generator import PromptBundle
 from .utils import save_image_with_fallback, sanitize_filename
@@ -19,8 +22,8 @@ class ImageGenerationConfig:
 
     model_name: str = "stabilityai/sdxl-turbo"
     device: str = "cuda"
-    height: int = 1024
-    width: int = 1024
+    height: int = 1080
+    width: int = 1920
     num_inference_steps: int = 4
     guidance_scale: float = 0.0
     num_images: int = 1
@@ -33,12 +36,23 @@ class ImageGenerationConfig:
     upscale_target: int = 4000
     upscale_method: str = "lanczos"
 
+    def validate(self) -> None:
+        if self.height < 1080 or self.width < 1920:
+            raise ValueError("Image dimensions must be at least 1920x1080 pixels.")
+        if self.num_images < 1:
+            raise ValueError("num_images must be at least 1.")
+        if self.guidance_scale < 0:
+            raise ValueError("guidance_scale must be zero or greater.")
+        if self.upscale_target < max(self.height, self.width):
+            raise ValueError("upscale_target must be at least the generated image size.")
+
 
 class ImageGenerator:
     """Generate and upscale images for stock production."""
 
     def __init__(self, config: Optional[ImageGenerationConfig] = None) -> None:
         self.config = config or ImageGenerationConfig()
+        self.config.validate()
         self._pipeline = None
 
     def load(self) -> None:
@@ -49,16 +63,17 @@ class ImageGenerator:
             from diffusers import AutoPipelineForText2Image  # type: ignore
         except Exception as exc:
             raise RuntimeError(
-                "diffusers/torch are required for image generation. Install them in Colab first."
+                "diffusers and torch are required for image generation. Install them in Colab first."
             ) from exc
 
         dtype = torch.float16 if torch.cuda.is_available() else torch.float32
         self._pipeline = self._load_pipeline(dtype)
 
-        if torch.cuda.is_available() and self.config.use_cpu_offload:
-            self._pipeline.enable_model_cpu_offload()
-        elif torch.cuda.is_available():
-            self._pipeline.to("cuda")
+        if torch.cuda.is_available():
+            if self.config.use_cpu_offload:
+                self._pipeline.enable_model_cpu_offload()
+            else:
+                self._pipeline.to("cuda")
         else:
             self._pipeline.to("cpu")
 
@@ -152,12 +167,17 @@ class ImageGenerator:
             import torch
             from realesrgan import RealESRGAN  # type: ignore
         except Exception as exc:
-            raise RuntimeError("Real-ESRGAN is not available.") from exc
+            logger.warning("Real-ESRGAN unavailable, falling back to PIL: %s", exc)
+            return self._upscale_with_pil(image, target)
 
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        model = RealESRGAN(device, scale=4)
-        model.load_weights("RealESRGAN_x4plus.pth", download=True)
-        return model.predict(image)
+        try:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            model = RealESRGAN(device, scale=4)
+            model.load_weights("RealESRGAN_x4plus.pth", download=True)
+            return model.predict(image)
+        except Exception as exc:
+            logger.warning("Real-ESRGAN upscale failed, falling back to PIL: %s", exc)
+            return self._upscale_with_pil(image, target)
 
     def _upscale_with_pil(self, image: Image.Image, target: int) -> Image.Image:
         """Fallback upscale using high-quality PIL resampling."""
@@ -175,8 +195,8 @@ class ImageGenerator:
 
         try:
             self._pipeline.load_lora_weights(lora_path)
-        except Exception:
-            return
+        except Exception as exc:
+            logger.warning("Failed to load LoRA weights from %s: %s", lora_path, exc)
 
     def _apply_visual_lora(self, bundle: PromptBundle) -> None:
         """Load a style-specific LoRA when one is configured."""

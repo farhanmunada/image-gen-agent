@@ -192,32 +192,35 @@ class PromptGenerator:
         ]
 
         expanded: List[str] = []
+        seen_lower = set()
         for keyword in trend_keywords + base_keywords:
             clean = self._clean_term(keyword)
             if not clean:
                 continue
             if self._is_forbidden(clean):
                 continue
-            if clean.lower() in {item.lower() for item in expanded}:
+            normalized = clean.lower()
+            if normalized in seen_lower:
                 continue
             expanded.append(clean)
+            seen_lower.add(normalized)
             if len(expanded) >= self.config.max_keywords:
                 break
 
+        fillers = [
+            "clean composition",
+            "copy space",
+            "modern aesthetics",
+            "commercial appeal",
+            "visual trend",
+            "high quality",
+            "professional image",
+        ]
         while len(expanded) < self.config.min_keywords:
-            filler = random.choice(
-                [
-                    "clean composition",
-                    "copy space",
-                    "modern aesthetics",
-                    "commercial appeal",
-                    "visual trend",
-                    "high quality",
-                    "professional image",
-                ]
-            )
-            if filler.lower() not in {item.lower() for item in expanded}:
+            filler = random.choice(fillers)
+            if filler.lower() not in seen_lower:
                 expanded.append(filler)
+                seen_lower.add(filler.lower())
 
         return expanded[: self.config.max_keywords]
 

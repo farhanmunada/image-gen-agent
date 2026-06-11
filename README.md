@@ -1,22 +1,25 @@
-# MAMG
+# Agent
 
-Multi-Agent AI Microstock Generator for Google Colab.
+Colab-focused image generation pipeline untuk aset microstock.
 
 ## File Utama
-- `mamg_colab.ipynb` untuk Colab
-- `main.py` untuk run script lokal
+
+- `agent_colab.ipynb` untuk Colab
 - `requirements_colab.txt` untuk install di Colab
 
 ## Cara Pakai di Colab
-1. Buka `mamg_colab.ipynb`
-2. Run cell mount Google Drive
-3. Run cell clone repo
-4. Run cell install library
-5. Edit cell `Setting Generate`
-6. Run cell pipeline
+
+1. Buka `agent_colab.ipynb`
+2. Jalankan cell mount Google Drive
+3. Jalankan cell clone repo
+4. Jalankan cell install library
+5. Isi form `Setting Generate`
+6. Jalankan pipeline
 
 ## Setting Generate
-Isi variabel ini di cell setting:
+
+Isi form ini di cell setting:
+
 - `CATEGORY`
 - `GEO`
 - `MAX_KEYWORDS`
@@ -36,11 +39,15 @@ Isi variabel ini di cell setting:
 - `PROMPT_MAX_KEYWORDS`
 
 ## Output
+
 Hasil tersimpan di Google Drive:
+
 - `MyDrive/AI_Microstock_Agent/outputs/<tanggal>_<trend>/images`
 - `MyDrive/AI_Microstock_Agent/outputs/<tanggal>_<trend>/metadata.csv`
 
 ## Catatan
+
 - Model default yang paling aman untuk Colab gratis adalah `stabilityai/sdxl-turbo`.
+- Ukuran gambar minimal adalah Full HD `1920x1080`.
 - `NUM_IMAGES` adalah jumlah gambar yang ingin di-generate.
 - `SEED = None` berarti hasilnya bisa bervariasi.

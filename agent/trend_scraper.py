@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import asdict
 from dataclasses import dataclass, field
@@ -11,6 +12,8 @@ from typing import Any, Dict, List, Optional
 
 import requests
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
 
 from .config import TrendScraperConfig
 
@@ -40,15 +43,20 @@ class TrendScraper:
         source = "pytrends"
 
         if not keywords:
+            logger.warning("Pytrends did not return keywords, using RSS fallback.")
             keywords = self._from_google_trends_rss()
             source = "google_trends_rss"
 
         if not keywords:
+            logger.warning("RSS fallback did not return keywords, using HTML fallback.")
             keywords = self._from_google_trends_html()
             source = "google_trends_html"
 
         keywords = self._normalize_keywords(keywords)
         keywords = keywords[: self.config.max_keywords]
+
+        if not keywords:
+            logger.warning("No trend keywords were found for category '%s'.", self.config.category)
 
         return TrendResult(
             category=self.config.category,
@@ -98,7 +106,8 @@ class TrendScraper:
             top = related_data.get("top")
             if top is not None and not top.empty:
                 return top["query"].astype(str).tolist()
-        except Exception:
+        except Exception as exc:
+            logger.debug("Pytrends fetch failed: %s", exc, exc_info=True)
             return []
 
         return []
@@ -124,7 +133,8 @@ class TrendScraper:
                 if len(keywords) >= self.config.max_keywords:
                     break
             return keywords
-        except Exception:
+        except Exception as exc:
+            logger.warning("Google Trends RSS fetch failed: %s", exc)
             return []
 
     def _from_google_trends_html(self) -> List[str]:
@@ -148,7 +158,8 @@ class TrendScraper:
                 if len(keywords) >= self.config.max_keywords:
                     break
             return keywords
-        except Exception:
+        except Exception as exc:
+            logger.warning("Google Trends HTML fetch failed: %s", exc)
             return []
 
     def _normalize_keywords(self, keywords: List[str]) -> List[str]:
