@@ -95,7 +95,7 @@ class TrendScraper:
                     return values
 
             kw_list = [self._category_seed(self.config.category)]
-            pytrends.build_payload(kw_list, timeframe=self.config.timeframe, geo=self.config.geo)
+            pytrends.build_payload(kw_list, timeframe=self.config.timeframe, geo=self._effective_geo())
             related = pytrends.related_queries()
             related_data = related.get(kw_list[0], {})
 
@@ -115,7 +115,8 @@ class TrendScraper:
     def _from_google_trends_rss(self) -> List[str]:
         """Fetch daily trending searches via the public RSS endpoint."""
 
-        url = f"https://trends.google.com/trends/trendingsearches/daily/rss?geo={self.config.geo}"
+        geo = self._effective_geo()
+        url = f"https://trends.google.com/trends/trendingsearches/daily/rss?geo={geo}"
         try:
             response = requests.get(
                 url,
@@ -184,6 +185,20 @@ class TrendScraper:
         text = re.sub(r"\s+", " ", text).strip()
         text = re.sub(r"^[\W_]+|[\W_]+$", "", text)
         return text
+
+    def _effective_geo(self) -> str:
+        """Return a valid geo code for Google Trends endpoints."""
+
+        geo = (self.config.geo or "").strip().upper()
+        if len(geo) == 2 and geo.isalpha():
+            return geo
+
+        logger.debug(
+            "Invalid geo %r for Google Trends endpoints; using fallback region %r.",
+            self.config.geo,
+            self.config.fallback_region,
+        )
+        return self.config.fallback_region
 
     def _looks_like_keyword(self, text: str) -> bool:
         """Heuristic filter for HTML fallback content."""

@@ -30,6 +30,10 @@ class ImageGenerationConfig:
     seed: Optional[int] = None
     use_cpu_offload: bool = True
     upscale_method: str = "lanczos"
+    enable_lora: bool = False
+    lora_paths: list[str] = field(default_factory=list)
+    auto_lora_by_visual_type: bool = False
+    visual_type_lora_map: dict[str, str] = field(default_factory=dict)
 
     def validate(self) -> None:
         if self.height < 1080 or self.width < 1920:
