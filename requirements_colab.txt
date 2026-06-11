@@ -1,0 +1,11 @@
+accelerate
+beautifulsoup4
+diffusers
+numpy
+pandas
+Pillow
+ipywidgets
+pytrends
+requests
+safetensors
+transformers
