@@ -53,7 +53,7 @@ class DriveManager:
 
         session_folder = outputs / build_session_folder_name(trend_name)
         session_images = session_folder / "images"
-        session_metadata = session_folder / "metadata.csv"
+        session_metadata = session_folder / "metadata.csv"  # Metadata in same folder as images
 
         for path in [root, models, outputs, logs, session_folder, session_images]:
             path.mkdir(parents=True, exist_ok=True)

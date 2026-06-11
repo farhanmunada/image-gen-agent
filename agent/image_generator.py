@@ -24,16 +24,11 @@ class ImageGenerationConfig:
     device: str = "cuda"
     height: int = 1080
     width: int = 1920
-    num_inference_steps: int = 4
-    guidance_scale: float = 0.0
+    num_inference_steps: int = 50
+    guidance_scale: float = 7.5
     num_images: int = 1
     seed: Optional[int] = None
     use_cpu_offload: bool = True
-    enable_lora: bool = False
-    lora_paths: List[str] = field(default_factory=list)
-    auto_lora_by_visual_type: bool = True
-    visual_type_lora_map: dict[str, str] = field(default_factory=dict)
-    upscale_target: int = 4000
     upscale_method: str = "lanczos"
 
     def validate(self) -> None:
@@ -43,8 +38,14 @@ class ImageGenerationConfig:
             raise ValueError("num_images must be at least 1.")
         if self.guidance_scale < 0:
             raise ValueError("guidance_scale must be zero or greater.")
-        if self.upscale_target < max(self.height, self.width):
-            raise ValueError("upscale_target must be at least the generated image size.")
+
+    def calculate_upscale_target(self) -> int:
+        """Calculate upscale target: minimum 2000px on the shortest side."""
+        min_side = min(self.height, self.width)
+        if min_side >= 2000:
+            return max(self.height, self.width)
+        scale = 2000 / min_side
+        return int(max(self.height, self.width) * scale)
 
 
 class ImageGenerator:
@@ -77,10 +78,6 @@ class ImageGenerator:
         else:
             self._pipeline.to("cpu")
 
-        if self.config.enable_lora and self.config.lora_paths:
-            for lora_path in self.config.lora_paths:
-                self._load_lora_weights(lora_path)
-
     def generate(
         self,
         bundle: PromptBundle,
@@ -92,21 +89,25 @@ class ImageGenerator:
         self._ensure_loaded(bundle)
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        logger.info(f"Starting image generation: {self.config.num_images} image(s) for {file_prefix}")
         generated_paths: List[Path] = []
         for index in range(self.config.num_images):
+            logger.info(f"Generating image {index + 1}/{self.config.num_images}...")
             image = self._generate_single(bundle.prompt, index)
             upscale_image = self.upscale(image)
             filename = f"{sanitize_filename(file_prefix)}_{index + 1:03d}.png"
             image_path = output_dir / filename
             saved_path = save_image_with_fallback(upscale_image, image_path)
+            logger.info(f"Saved image {index + 1} to {saved_path.name}")
             generated_paths.append(saved_path)
 
+        logger.info(f"Completed generation: {len(generated_paths)} image(s) created")
         return generated_paths
 
     def upscale(self, image: Image.Image) -> Image.Image:
-        """Upscale to the configured target size."""
+        """Upscale to maintain minimum 2000px on shortest side."""
 
-        target = self.config.upscale_target
+        target = self.config.calculate_upscale_target()
         if image.width >= target and image.height >= target:
             return image
 
@@ -128,15 +129,21 @@ class ImageGenerator:
             generator = torch.Generator(device="cuda" if torch.cuda.is_available() else "cpu")
             generator.manual_seed(self.config.seed + index)
 
+        logger.debug(f"Generating image {index + 1} with prompt (truncated): {prompt[:100]}...")
+        
         result = self._pipeline(
             prompt=prompt,
             num_inference_steps=self.config.num_inference_steps,
             guidance_scale=self.config.guidance_scale,
             height=self.config.height,
             width=self.config.width,
+            num_images_per_prompt=1,  # Explicitly single image per prompt
             generator=generator,
         )
-        return result.images[0]
+        
+        image = result.images[0]
+        logger.debug(f"Generated image {index + 1}: {image.size}")
+        return image
 
     def _load_pipeline(self, dtype):
         """Choose the right diffusers pipeline for the configured model."""
@@ -166,9 +173,9 @@ class ImageGenerator:
         try:
             import torch
             from realesrgan import RealESRGAN  # type: ignore
-        except Exception as exc:
-            logger.warning("Real-ESRGAN unavailable, falling back to PIL: %s", exc)
-            return self._upscale_with_pil(image, target)
+        except ImportError:
+            logger.debug("Real-ESRGAN not installed, using PIL upscaling.")
+            raise RuntimeError("Real-ESRGAN unavailable") from None
 
         try:
             device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -176,8 +183,8 @@ class ImageGenerator:
             model.load_weights("RealESRGAN_x4plus.pth", download=True)
             return model.predict(image)
         except Exception as exc:
-            logger.warning("Real-ESRGAN upscale failed, falling back to PIL: %s", exc)
-            return self._upscale_with_pil(image, target)
+            logger.debug("Real-ESRGAN upscale failed: %s, using PIL.", exc)
+            raise
 
     def _upscale_with_pil(self, image: Image.Image, target: int) -> Image.Image:
         """Fallback upscale using high-quality PIL resampling."""

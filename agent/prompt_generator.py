@@ -135,7 +135,10 @@ class PromptGenerator:
 
         negative_prompt = (
             "no brand logos, no watermark, no text, no copyrighted character, no celebrity, "
-            "no distorted anatomy, no low resolution, no blurry details"
+            "no distorted anatomy, no low resolution, no blurry details, "
+            "no grid, no collage, no montage, no multiple images, no image grid, "
+            "no 2x2, no 3x3, no tile pattern, no composite, no side-by-side, "
+            "single subject, single image, unified composition"
         )
         return flatten_text(
             f"{style}, centered composition, polished commercial stock image, {category.lower()} theme, "
