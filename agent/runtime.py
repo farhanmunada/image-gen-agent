@@ -20,11 +20,11 @@ class ImageSize(Enum):
 
     @property
     def width(self) -> int:
-        return self[0]
+        return self.value[0]
 
     @property
     def height(self) -> int:
-        return self[1]
+        return self.value[1]
 
 
 @dataclass(slots=True)
